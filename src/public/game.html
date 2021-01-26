@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Sawarabi+Mincho"
+      rel="stylesheet"
+    />
+    <title>センサからの信号受信</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/addons/p5.sound.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+    <style>
+      body {
+        font-family: "Sawarabi Mincho";
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 60px;
+        margin: 0px;
+      }
+
+      h2 {
+        margin: 0px;
+      }
+
+      div {
+        margin: 5px;
+      }
+
+      #connect {
+        margin: 5px;
+        font-size: 20px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>鬼退治</h1>
+    <h2>十五秒以内に、鬼を五体倒せ</h2>
+    <div>
+      <div>あなたのID: <span id="myid"></span></div>
+      <div>
+        ルームID: <input id="room" type="text" size="10" value="room001" />
+      </div>
+      <button id="connect">任務に当たる</button>
+    </div>
+    <script>
+      let socket = io.connect();
+      let myid;
+      let room = document.querySelector("#room").value;
+      let btn = document.querySelector("#connect");
+      let b = 0;
+      let g = 0;
+      let x = 50;
+      let y = 50;
+      let speed = 0.1;
+      let img;
+      let sample; //音
+      let scene = 1;
+      let targetX = 450;
+      let targetY = 450;
+      let score = 5; //スコア
+      const time = 15000; //秒数
+      let out = 1;
+
+      btn.addEventListener("click", function () {
+        socket.emit("join", room);
+        btn.remove();
+      });
+
+      socket.on("mylogin", function (data) {
+        myid = data;
+        document.querySelector("#myid").innerHTML = myid;
+        console.log("あなたのID: ", myid);
+      });
+
+      socket.on("sensor", function (data) {
+        g = parseFloat(data.g);
+        b = parseFloat(data.b);
+        console.log(g);
+      });
+
+      //ダウンロード
+      function preload() {
+        yaiba = loadImage("img/kensi.png");
+        oni = loadImage("img/oni.png");
+        ti = loadImage("img/ti.png");
+        fuji = loadImage("img/fuji.jpg");
+        sample = loadSound("assets/sword-slash1.mp3");
+      }
+
+      function setup() {
+        createCanvas(800, 500);
+        background(200);
+        imageMode(CENTER);
+        textFont("Sawarabi Mincho");
+        targetX = random(width);
+        targetY = random(height);
+      }
+
+      function draw() {
+        background(200);
+
+        //シーン推移
+        if (scene == 1) {
+          batle_scene();
+          if (score == 0) {
+            scene++;
+          }
+        } else if (scene == 2) {
+          finish_scene();
+        } else if (scene == 3) {
+          out_scene();
+        }
+      }
+
+      //バトル画面
+      function batle_scene() {
+        const currentTime = millis();
+        background(89, 88, 87);
+        fill(255, 252, 250);
+        textSize(25);
+        text(
+          "経過時間：" + Math.floor(currentTime / 1000) + "秒",
+          (width * 3) / 4,
+          50
+        );
+        text("あと" + score + "撃", (width * 3) / 4, 80);
+
+        //タイマー
+        if (currentTime > time) {
+          scene = scene + 2;
+          print("15秒");
+        }
+
+        //刃
+        x = x + speed * g;
+        y = y + speed * b;
+
+        //キャンバス内制限
+        x = constrain(x, 0, width);
+        y = constrain(y, 0, height);
+        targetX = constrain(targetX, 0, width);
+        targetY = constrain(targetY, 0, height);
+
+        //表示
+        image(yaiba, x, y, 100, 100);
+        image(oni, targetX, targetY, 100, 100);
+
+        //攻撃
+        let distance = Math.sqrt(
+          (x - targetX) * (x - targetX) + (y - targetY) * (y - targetY)
+        );
+        if (distance < 40) {
+          sample.play();
+          score--;
+          targetX = random(width);
+          targetY = random(height);
+        }
+      }
+
+      //終了画面
+      function finish_scene() {
+        tint(165, 154, 202, 150);
+        image(fuji, width / 2, height / 2, 1100, 825, 125);
+        fill(42, 39, 51);
+        textSize(70);
+        text("よくやった！", width / 4, height / 2);
+      }
+
+      //ゲームオーバー
+      function out_scene() {
+        // background(225, 0, 0);
+        background(116, 10, 0);
+        fill(225);
+        textSize(70);
+        image(ti, width / 2, height / 2, 700, 525);
+        text("修行が足りん", width / 4, height / 2);
+      }
+    </script>
+  </body>
+</html>

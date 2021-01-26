@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>最終課題</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/addons/p5.sound.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+    <style>
+      body {
+        font-family: "Sawarabi Mincho";
+        text-align: center;
+      }
+      h1 {
+        font-size: 60px;
+        margin: 0px;
+      }
+
+      h2 {
+        margin: 0px;
+      }
+
+      div {
+        margin: 5px;
+      }
+
+      p {
+        margin: 5px;
+      }
+      div {
+        margin: 5px;
+      }
+      #mic {
+        width: 70px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>ʚ♥ɞオタ活ʚ♥ɞ</h1>
+    <h2>コンサート編</h2>
+    <div>
+      <div>あなたのチケットID: <span id="myid"></span></div>
+      <div>
+        担当アイドル: <input id="room" type="text" size="10" value="room001" />
+      </div>
+      <button id="connect">参戦する💕</button>
+      <div class="center-box"><img id="mic" src="micoff.svg" /></div>
+    </div>
+    <script>
+      let socket = io.connect();
+      let myid;
+      let x = 400;
+      let y = 375;
+      let speed = 0.1;
+      //let g = 0;
+      let b = 0;
+      let scene = 1;
+      let sample;
+
+      let room = document.querySelector("#room").value;
+      let btn = document.querySelector("#connect");
+
+      btn.addEventListener("click", function () {
+        socket.emit("join", room);
+        btn.remove();
+      });
+
+      socket.on("mylogin", function (data) {
+        myid = data;
+        document.querySelector("#myid").innerHTML = myid;
+        console.log("あなたのID: ", myid);
+      });
+
+      socket.on("sensor", function (data) {
+        console.log(data);
+        g = parseFloat(data.g);
+        b = parseFloat(data.b);
+      });
+
+      //ダウンロード
+      function preload() {
+        idol = loadImage("img/idol.png");
+        kyaku = loadImage("img/kyaku.png");
+        sta = loadImage("img/sta.png");
+        up = loadImage("img/up.png"); //ノーマル
+        down = loadImage("img/down.png");
+        ikemen = loadImage("img/ikemen.png");
+        sample = loadSound("assets/voice.mp3");
+      }
+
+      function setup() {
+        createCanvas(800, 500);
+        background(200);
+      }
+
+      function draw() {
+        background(0, 64, 128);
+        if (scene == 1) {
+          live();
+        } else if (scene == 2) {
+          fan();
+        }
+      }
+
+      function live() {
+        //うちわ制御
+        y = y + speed * b * 50;
+        y = constrain(y, 270, 470);
+
+        //ステージ
+        fill(0, 159, 242);
+        rect(0, 0, 800, 270);
+
+        stroke(0, 51, 102); //堺
+        line(0, 200, 800, 200);
+        fill(0, 51, 102); //段
+        rect(0, 260, 800, 20);
+        fill(255, 255, 102);
+        noStroke();
+        rect(200, 30, 400, 150); //スクリーン
+        rect(50, 30, 100, 150); //スクリーン
+        rect(650, 30, 100, 150); //スクリーン
+        //影
+        fill(107, 61, 153, 190);
+        noStroke();
+        rect(200, 230, 400, 20); //スクリーン
+
+        //客
+        image(kyaku, 0, 210, 350, 165);
+        image(kyaku, 450, 210, 350, 165);
+        image(kyaku, 0, 350, 350, 165);
+        image(kyaku, 450, 350, 350, 165);
+
+        //アイドル
+        let a = 50;
+        if (y == 270) {
+          a = 30;
+
+          fill(255, 51, 153, 150); //ライト
+          noStroke();
+          quad(200, 0, 600, 0, 650, 270, 150, 270);
+          fill(255, 51, 153, 50);
+          noStroke();
+          rect(0, 0, 800, 500);
+          image(idol, 200, a, 400, 225);
+          image(down, 300, 280, 200, 200);
+        } else {
+          image(idol, 200, a, 400, 225);
+          image(up, 300, 280, 200, 200);
+        }
+
+        //ファンサ
+        const resultDiv = document.querySelector("#result-div");
+        const micDiv = document.querySelector("#mic");
+
+        // 音声認識機能(Chrome)
+        let rec = new webkitSpeechRecognition();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.lang = "ja-JP";
+
+        let stopped = true;
+
+        let number = 1;
+
+        micDiv.onclick = function () {
+          if (stopped == true) {
+            // resultDiv.innerHTML = "";
+            rec.start();
+          } else {
+            rec.stop();
+          }
+        };
+
+        rec.onstart = function () {
+          //スタート
+          console.log("on start");
+          micDiv.setAttribute("src", "micon.svg");
+        };
+
+        rec.onend = function () {
+          //エンド
+          console.log("on end");
+          micDiv.setAttribute("src", "micoff.svg");
+        };
+
+        rec.onresult = function (e) {
+          //実行
+          rec.stop();
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (e.results[i].isFinal) {
+              console.log(e);
+              let text = e.results[i][0].transcript;
+              text = hug(text);
+              console.log(text);
+            }
+          }
+        };
+
+        function hug(input) {
+          if (/投げキッスして/.test(input)) {
+            scene = scene + 1;
+            return scene;
+            console.log(scene);
+          }
+        }
+      }
+
+      function fan() {
+        //background(336, 100, 100);
+        image(sta, 0, 0, 800, 507);
+        image(ikemen, 50, 13, 650, 487);
+        fill(0, 159, 242, 10); //ライト全体
+        noStroke();
+        rect(0, 0, 800, 500);
+        fill(255, 255, 51, 30); //ライト
+        noStroke();
+        quad(250, 0, 800, 0, 700, 500, 0, 500);
+        sample.play();
+        sample.noLoop();
+      }
+    </script>
+  </body>
+</html>
